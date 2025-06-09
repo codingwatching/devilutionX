@@ -697,6 +697,19 @@ void HandleMouseButtonUp(Uint8 button, uint16_t modState)
 	LogVerbose("Unhandled SDL event: {} {}", name, value);
 }
 
+void PrepareForFadeIn()
+{
+	if (HeadlessMode) return;
+	BlackPalette();
+
+	// Render the game to the buffer(s) with a fully black palette.
+	// Palette fade-in will gradually make it visible.
+	RedrawEverything();
+	while (IsRedrawEverything()) {
+		DrawAndBlit();
+	}
+}
+
 void GameEventHandler(const SDL_Event &event, uint16_t modState)
 {
 	[[maybe_unused]] Options &options = GetOptions();
@@ -813,15 +826,7 @@ void GameEventHandler(const SDL_Event &event, uint16_t modState)
 			sound_stop();
 			ShowProgress(GetCustomEvent(event));
 
-			RedrawEverything();
-			if (!HeadlessMode) {
-				while (IsRedrawEverything()) {
-					// In direct rendering mode with double/triple buffering, we need
-					// to prepare all buffers before fading in.
-					DrawAndBlit();
-				}
-			}
-
+			PrepareForFadeIn();
 			LoadPWaterPalette();
 			if (gbRunGame)
 				PaletteFadeIn(8);
@@ -847,15 +852,7 @@ void RunGameLoop(interface_mode uMsg)
 	gbProcessPlayers = IsDiabloAlive(true);
 	gbRunGameResult = true;
 
-	RedrawEverything();
-	if (!HeadlessMode) {
-		while (IsRedrawEverything()) {
-			// In direct rendering mode with double/triple buffering, we need
-			// to prepare all buffers before fading in.
-			DrawAndBlit();
-		}
-	}
-
+	PrepareForFadeIn();
 	LoadPWaterPalette();
 	PaletteFadeIn(8);
 	InitBackbufferState();
@@ -2716,7 +2713,7 @@ bool TryIconCurs()
 		if (IsWallSpell(spellID)) {
 			Direction sd = GetDirection(myPlayer.position.tile, cursPosition);
 			NetSendCmdLocParam4(true, CMD_SPELLXYD, cursPosition, static_cast<int8_t>(spellID), static_cast<uint8_t>(spellType), static_cast<uint16_t>(sd), spellFrom);
-		} else if (pcursmonst != -1) {
+		} else if (pcursmonst != -1 && leveltype != DTYPE_TOWN) {
 			NetSendCmdParam4(true, CMD_SPELLID, pcursmonst, static_cast<int8_t>(spellID), static_cast<uint8_t>(spellType), spellFrom);
 		} else if (PlayerUnderCursor != nullptr && !myPlayer.friendlyMode) {
 			NetSendCmdParam4(true, CMD_SPELLPID, PlayerUnderCursor->getId(), static_cast<int8_t>(spellID), static_cast<uint8_t>(spellType), spellFrom);
